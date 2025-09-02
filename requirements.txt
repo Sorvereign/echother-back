@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+python-multipart
+httpx
+openai
+pydantic
+python-dotenv
+supabase
+numpy
+cocoindex
+sentence-transformers
+psycopg2-binary
+pgvector
+torch
+

@@ -1,0 +1,12 @@
+# python
+/venv
+/env
+
+# node
+/node_modules
+
+# supabase
+/supabase
+
+# logs
+/logs
