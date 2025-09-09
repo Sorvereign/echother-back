@@ -25,6 +25,30 @@ class ContextBlocksService:
         transcription = transcribe_audio_to_text(audio_file_path)
         print(f"Transcription length: {len(transcription)} characters")
         
+        # Try to persist original audio in Supabase Storage (public bucket 'recordings')
+        audio_public_url: Optional[str] = None
+        if supabase is not None:
+            try:
+                storage = supabase.storage
+                storage_bucket = storage.from_("recordings")
+                storage_path = f"{session_id}.webm"
+                # Upload the local file to storage
+                print(f"Uploading audio to storage at path: {storage_path}")
+                storage_bucket.upload(file=audio_file_path, path=storage_path)
+                # Build public URL (assumes 'recordings' bucket is public)
+                try:
+                    public_url_resp = storage_bucket.get_public_url(storage_path)
+                    # supabase-py may return dict or object; handle both
+                    if isinstance(public_url_resp, dict):
+                        audio_public_url = public_url_resp.get("publicUrl") or public_url_resp.get("data", {}).get("publicUrl")
+                    else:
+                        audio_public_url = getattr(public_url_resp, "public_url", None) or getattr(public_url_resp, "publicUrl", None)
+                    print(f"Audio public URL: {audio_public_url}")
+                except Exception as e:
+                    print(f"Failed to get public URL: {e}")
+            except Exception as e:
+                print(f"Audio upload to storage failed: {e}")
+        
         if supabase is not None:
             session_row = {
                 "id": session_id,
@@ -50,7 +74,8 @@ class ContextBlocksService:
             "session_id": session_id,
             "status": "completed", 
             "transcription": transcription,
-            "context_blocks": context_blocks
+            "context_blocks": context_blocks,
+            "audio_url": audio_public_url
         }
 
     def analyze_and_generate_context_blocks(self, session_id: str, transcription: str) -> List[Dict[str, Any]]:

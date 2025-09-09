@@ -39,16 +39,58 @@ async def get_session(request: Request, credentials: Optional[HTTPAuthorizationC
         if not user.user:
             return {"user": None}
         
+        user_meta = getattr(user.user, 'user_metadata', {}) or {}
+        full_name = user_meta.get('full_name') or user_meta.get('name')
+        github_username = user_meta.get('user_name') or user_meta.get('preferred_username')
+        avatar_url = user_meta.get('avatar_url')
+
         return {
             "user": {
                 "id": user.user.id,
                 "email": user.user.email,
-                "created_at": user.user.created_at
+                "created_at": user.user.created_at,
+                "name": full_name,
+                "user_name": github_username,
+                "avatar_url": avatar_url
             }
         }
     except Exception as e:
         print(f"Auth error: {e}")
         return {"user": None}
+
+@router.post("/login")
+async def login(request: Request):
+    """Login endpoint for frontend"""
+    try:
+        body = await request.json()
+        email = body.get("email")
+        password = body.get("password")
+        
+        if not email or not password:
+            raise HTTPException(status_code=400, detail="Email and password required")
+        
+        # Authenticate with Supabase
+        response = supabase.auth.sign_in_with_password({
+            "email": email,
+            "password": password
+        })
+        
+        if response.user:
+            return {
+                "success": True,
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email,
+                    "created_at": response.user.created_at
+                },
+                "access_token": response.session.access_token if response.session else None
+            }
+        else:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+            
+    except Exception as e:
+        print(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
 
 @router.post("/extension-login")
 async def extension_login(request: Request):

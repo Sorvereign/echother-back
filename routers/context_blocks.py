@@ -31,6 +31,12 @@ async def process_meeting(file: UploadFile = File(...), user_id: Optional[str] =
 
         service = ContextBlocksService()
         result = service.process_meeting(tmp_path, user_id=user_id, repo_url=repo_url)
+        # If we have a public audio URL, persist it on the session row
+        try:
+            if supabase is not None and result.get("audio_url") and result.get("session_id"):
+                supabase.table("context_sessions").update({"audio_url": result["audio_url"]}).eq("id", result["session_id"]).execute()
+        except Exception as e:
+            print(f"Failed to persist audio_url: {e}")
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
